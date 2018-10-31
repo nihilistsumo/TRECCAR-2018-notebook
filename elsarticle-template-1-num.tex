@@ -177,7 +177,8 @@ We use as expansion models
 \begin{itemize}
     \item none: No expansion. Just use the initial retrieval.
     \item RM3 expansion (custom implementation \cite{lavrenko2017relevance}) using 20 top paragraphs/pages to expand with 20 terms.
-    \item ECM expansion: a variant of the entity context model \cite{dalton2014entity} that represents a feedback run as a bag-of-entity-targets, then uses the relevance model to compute an distribution of expansion entities.  Uses entities linked in 
+    \item ECM expansion: a variant of the entity context model \cite{dalton2014entity} that represents a feedback run as a bag-of-entity-targets, then uses the relevance model to compute an distribution of expansion entities. Produces a ranking of entity according to the expansion probability. Uses top 100 paragraphs/pages.
+    \item ECM-psg expansion: Like ECM expansion but expands the keyword query with top 20 expansion entities.
 \end{itemize}
 
 
@@ -313,7 +314,7 @@ We use the same two-stage approach as in Section \ref{sec:sdm} to learn how to c
 \section{Joint entity-passage methods}
 
 In this paper, we consider methods that can be used to jointly score entities and passages.
-As an example, consider a scenario where we have a passage, $p$, and a set of entities, $E$, that are contained within the passage. Let $f_p$ be a feature that scores the relevance of a passage given a query. 
+As an example, consider a scenario where we have a passage, $p$, and a set of entities, $E$, that are contained within this passage. Let $f_p$ be a feature that scores the relevance of a passage given a query. If we
 
 \subsection{Joint Features}\label{sec:joint}
 In this paper, we explore methods that can be used for both passage retrieval and entity retrieval tasks.
