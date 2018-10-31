@@ -132,14 +132,65 @@ In Section \ref{sec:para} we will first describe which unsupervised retrieval an
 
 %\section{Related Work and Background}
 %\label{S:2}
+\section{Low-level Retrieval Features}
 
-\section{Low-level Paragraph Retrieval Features}\label{sec:para}
+Each of our approaches are based on (a subset of) a variety of unsupervised retrieval models and indexes we describe in the following.
+
+\paragraph{Indexes:}
+
+We create different search indexes. 
+\begin{itemize}
+    \item A paragraph index out the text in passages of the \texttt{paragraphCorpus}.
+    \item A page index out of text Wikipedia pages in \texttt{allButBenchmark}. 
+    \item An entity index out of the first paragraph, anchortext, category info of Wikipages in \ttt{allButBenchmark}.
+    \item An ecm-paragraph index out of text in paragraphs in Wikipedia pages in \texttt{allButBenchmark}.
+\end{itemize}
+
+The name ecm-paragraph is in attribution to the entity context model \cite{dalton2014entity}, which uses passages with contained entity mentions for new expansion models. Where Dalton et al.\ uses passages from a feedback run, the ecm-paragraph index allows us to directly retrieve relevant passages before extracting entity-centric information.
+
+\paragraph{Query models:}
+Given a stub with page title $T$ and an tree-shaped outline of headings $H1$, $H1.1$, $H1.2$, $H1.2.1$, $H2$,... there are different ways to derives queries for retrieval with BM25, QL, etc for a particular heading, say $H1.2$. The simplest is what we call section path queries, which concatenates the page title $T$, with all parent headings (in this example $H1$) and the heading itself ($H1.2$) to derive the query. However, more options are possible such as using just the page title $T$, or all headings in the stub.
+
+\begin{itemize}
+    \item section path: Concatenation of page title, parent headings, and heading (Example: $T,H1,H1.2$).
+    \item title: only the page title ($T$)
+    \item leaf: only the heading itself ($H1.2$)
+    \item internal: concatenation of the parent heading(s) ($H1$)
+    \item all: concatenation of page title and all headings in the stub ($T,H1,H1.1,H1.2, H1.2.1,H2,\dots$)
+    \item subtree: concatenation of all headings in the subtree rooted by the heading ($H1.2, H1.2.1$)
+\end{itemize}
+
+The section path model is very popular among the TREC CAR community and usually works best as a standalone method. However, it has been argued that learning a weighted combination between title, internal, and leaf query models could give potentially even better performance.
+
+\todo{Can someone figure out why the citations look so ... rugged..?}
+
+\paragraph{Retrieval and expansion models:}
+
+Given a query model to transform the stub into a keyword query and an index, we  use different retrieval models to obtain a low-level ranking (which we will combine with different learning to rank methods in the following). In particular we use as retrieval models:
+
+\begin{itemize}
+    \item BM25, as implemented in Lucene.
+    \item Query likelihood, as implemented in Lucene.
+\end{itemize}
+
+We use as expansion models    
+\begin{itemize}
+    \item none: No expansion. Just use the initial retrieval.
+    \item RM3 expansion (custom implementation \cite{lavrenko2017relevance}) using 20 top paragraphs/pages to expand with 20 terms.
+    \item ECM expansion: a variant of the entity context model \cite{dalton2014entity} that represents a feedback run as a bag-of-entity-targets, then uses the relevance model to compute an distribution of expansion entities.  Uses entities linked in 
+\end{itemize}
+
+
+
+
+
+\subsection{Low-level Paragraph Retrieval Features}\label{sec:para}
 
 We have used the following ranking and expansion models for the paragraph retrieval task.
 \begin{itemize}
     \item sectionPath-bm25-none: BM25 retrieval model
     \item sectionPath-ql-none: Query likelihood retrieval model (no expansion)
-    \item sectionPath-bm25-rm: BM25-babsed relevance feedback
+    \item sectionPath-bm25-rm: BM25-based relevance feedback
     \item sectionPath-ql-rm: Query likelihood-based relevance feedback
 \end{itemize}
 For all of them we derive the retrieval query from the section path associated with the heading. The section paths includes all words from the page title, and all parent headings, including the words of heading $H_i$ for which the ranking is created.
@@ -163,9 +214,8 @@ sectionPath-ql-rm & 0.0744 & 0.0493 & 0.1180 \\
 \caption{Paragraph feature results, Y1 Train tree qrels}\label{tab:para}
 \end{table}
 
-\section{Low-level Entity Retrieval Features}
+\subsection{Low-level Entity Retrieval Features}
 \label{sec:entity}
-
 
 
 
@@ -180,39 +230,26 @@ sectionPath-ql-rm & 0.0744 & 0.0493 & 0.1180 \\
 %    \item retrieval-model: BM25, Query Likelihood
 %    \item expansion-model: Entity Context Model
     \end{itemize}
-\subsection{Results}
+
+
+\section{UNH-p-l2r}
+
+Interpreting the set of rank scores (using Section \ref{sec:para}) for a particular paragraph as features, we learn how to optimally combine them with learning to rank. We use the Co-ordinate ascent algorithm of RankLib's learning to rank implementation to be optimized for MAP.
+
+We use only a combination of:
+\begin{itemize}
+    \item sectionPath-bm25-none: BM25 retrieval model
+    \item sectionPath-ql-none: Query likelihood retrieval model (no expansion)
+    \item sectionPath-bm25-rm: BM25-babsed relevance feedback
+    \item sectionPath-ql-rm: Query likelihood-based relevance feedback
+\end{itemize}
 
 
 
-
-\section{Learning to rank results for paragraph features}
-
-\subsection{Approach}
-
-After we produce runfiles for each of the paragraph task features discussed in Section \ref{sec:para}, we combine them using learning to rank. We use the Co-ordinate ascent algorithm of RankLib's learning to rank implementation to be optimized for MAP.
+\section{UNH-e-l2r}
 
 
-\subsection{Results}
-
-\begin{table}[!htb]
-\centering
-\begin{tabular}{l l l l}
-\hline
-\textbf{Feature} & \textbf{MAP} & \textbf{Rprec} & \textbf{recip\_rank}\\
-\hline
-norm-tree-BY1train & 0.1175 & 0.0884 & 0.1840 \\
-norm-tree-BY1test & 0.1253 & 0.0998 & 0.2064 \\
-\hline
-\end{tabular}
-\caption{Learning to rank results for paragraph, tree qrels}\label{tab:l2rpara}
-\end{table}
-
-
-\section{Learning to rank results for entity features}
-
-\subsection{Approach}
-
-Four types of indices were made using Lucene v7.2.1: aspect, entity, page and paragraph.For each index, features were calculated using various combination of query-level,retrieval-model, expansion-model,and analyzer as follows:
+Four types of indices were made using Lucene v7.2.1: aspect, entity, page and paragraph. For each index, features were calculated using various combination of query-level,retrieval-model, expansion-model,and analyzer as follows:
 \begin{itemize}
    \item query-level: section path, all
     \item retrieval-model: BM25, Query Likelihood
@@ -275,31 +312,39 @@ We use the same two-stage approach as in Section \ref{sec:sdm} to learn how to c
 
 \section{Joint entity-passage methods}
 
+In this paper, we consider methods that can be used to jointly score entities and passages.
+As an example, consider a scenario where we have a passage, $p$, and a set of entities, $E$, that are contained within the passage. Let $f_p$ be a feature that scores the relevance of a passages 
+
 \subsection{Joint Features}\label{sec:joint}
 In this paper, we explore methods that can be used for both passage retrieval and entity retrieval tasks.
 We define ``Joint Features'' as features that can be used to score both entities and passages.
-For each paragraph, let $\mathbf{1}_{(e|p)}$ be the indicator function that indicates entity containment such that
+We create Joint Features by transforming entity features into passage features and vice feature.
 
-$$
-\mathbf{1}_{(e|p)}(e) = \begin{cases}
-    1  \text{ if } e \in p \\
-    0 \text{ if } e \not\in p
-\end{cases}
-$$
+\textbf{Entity Feature $\rightarrow$ Passage Feature}: For each passage, $p$, let $E$ be the set of entities contained in the passage. Let the score of $p$ be equal to $f_p(p) = \sum_{e \in E}{f_e(e)}$, where $f_e$ is a feature that scores the relevance of entities with respect to the query.
 
-Then we may score an entity, $e$, with respect to a paragraph feature, $f_p$, by equation \ref{eq:parToEnt}.
-Similarly, we may score a paragraph, $p$, with respect to an entity feature, $f_e$, by equation \ref{eq:entToPar}.
+\textbf{Passage Feature $\rightarrow$ Entity Feature}: For each entity, $e$, let $P$ be the set of passages that contain this entity. Let the score of the $e$ be equal to $f_e(e) = \sum_{p \in P}{f_p(p)}$, where $f_p$ is a feature that scores the relevance of passages with respect to the query.
+%For each paragraph, let $\mathbf{1}_{(e|p)}$ be the indicator function that indicates entity containment such that
 
-\todo{this is difficult to understand, although I think you are doing something simple. Please improve or delete.}
+% $$
+% \mathbf{1}_{(e|p)}(e) = \begin{cases}
+%     1  \text{ if } e \in p \\
+%     0 \text{ if } e \not\in p
+% \end{cases}
+% $$
 
-\begin{multicols}{2}
-  \begin{equation}\label{eq:parToEnt}
-    f_e(e) = \sum_{\forall p \in P}{\mathbf{1}_{(e|p)}(e)f_p(p)}
-  \end{equation}\break
-  \begin{equation}\label{eq:entToPar}
-    f_p(p) = \sum_{\forall e \in E}{\mathbf{1}_{(e|p)}(e)f_e(e)}
-  \end{equation}
-\end{multicols}
+% Then we may score an entity, $e$, with respect to a paragraph feature, $f_p$, by equation \ref{eq:parToEnt}.
+% Similarly, we may score a paragraph, $p$, with respect to an entity feature, $f_e$, by equation \ref{eq:entToPar}.
+
+% \todo{this is difficult to understand, although I think you are doing something simple. Please improve or delete.}
+
+% \begin{multicols}{2}
+%   \begin{equation}\label{eq:parToEnt}
+%     f_e(e) = \sum_{\forall p \in P}{\mathbf{1}_{(e|p)}(e)f_p(p)}
+%   \end{equation}\break
+%   \begin{equation}\label{eq:entToPar}
+%     f_p(p) = \sum_{\forall e \in E}{\mathbf{1}_{(e|p)}(e)f_e(e)}
+%   \end{equation}
+% \end{multicols}
 
 %Let $\mathbf{V_p}$ be a vector space of passages, and $\mathbf{V_e}$ be vector spaces of entities. We may represent a passage feature as a linear functional $f_p: \mathbf{V_p} \rightarrow \mathbb{R}$. Given a linear map $\eta_{(p|e)}: \mathbf{V_p} \rightarrow \mathbf{V_e}$, we may construct an entity feature from a passage feature by the composition $f_{(e|p)} = \eta_{(p|e)} \circ f_p$. Conversely, we can construct a passage feature from an entity feature by $f_{(p|e)} = \eta^{-1}_{(p|e)} \circ f_e$.
 
@@ -326,7 +371,7 @@ In addition, we utilize the following entity features that have been transformed
 
 \textbf{Link Frequency. } An entity's score is equal to the frequency that it is linked to by the candidate passages retrieved for the given query. \todo{You need to explain why you are now talking about entities --- so far we are in a pure passage retrieval setting. Also, the current description it is insufficient for someone else to implement it.}
 
-\textbf{Fielded Queries.} Because our entity index represents a collection of Wikipedia pages, we can consider page attributes as document fields. We store the following page fields: (enwiki) categories, inlinks, outlinks, section headers, page name disambiguations, and page name redirects. We may score the relevance of each field with respect to the query by using thestandard BM25 model. We learn a weighted combination of these scores that best predicts relevance.
+\textbf{Fielded Queries.} Because our entity index represents a collection of Wikipedia pages, we can consider page attributes as document fields. We store the following page fields: (enwiki) categories, inlinks, outlinks, section headers, page name disambiguations, and page name redirects. We may score the relevance of each field with respect to the query by using the standard BM25 model. We learn a weighted combination of these scores that best predicts relevance.
 
 \textbf{Global Entity Context:} Whenever a passage links to an entity in Wikipedia, we create a pseudo-document that contains the unigrams, bigrams, and windowed bigrams derived from that passage.  We consider the collection of all such pseudo-documents belonging to an entity as that entity's ``context'' in which it is mentioned. As this approach is different from query-specific context models  \cite{dalton2014entity}, in that we use one global entity context model derived from the corpus. For each query, we construct a unigram, bigram, and windowed bigram query that is used to retrieve pseudo-documents from the context index.
 
@@ -402,7 +447,7 @@ On the automatic benchmarks Y1 Train and Y1 Test, UNH-p-mixed and UNH-e-mixed me
 
 \begin{table}
 \centering
-\caption{Performance of passage retrieval methods. Y1 Train and Y1 Test benchmarks are derived from an automatically generated ground truth. The Y2 Test benchmark contains the TREC 2018 manual assessments.\label{tab:psg-results} }
+\caption{Performance of passage retrieval methods (submitted and low-level sectionpath baselines). Y1 Train and Y1 Test benchmarks are derived from an automatically generated ground truth. The Y2 Test benchmark contains the TREC 2018 manual assessments.\label{tab:psg-results} }
 \resizebox{\columnwidth}{!}{%
     \begin{tabular}{llllllllll}\toprule 
          & \multicolumn{3}{c}{\textbf{Y1 Train}} & \multicolumn{3}{c}{\textbf{Y1 Test}} & \multicolumn{3}{c}{\textbf{Y2 Test}} \\
@@ -411,10 +456,10 @@ On the automatic benchmarks Y1 Train and Y1 Test, UNH-p-mixed and UNH-e-mixed me
         UNH-p-l2r             & 0.12                 & 0.09                  & 0.20                  & 0.13                & 0.11                  & \textbf{0.27}               & \textbf{0.34}                & \textbf{0.33}                  & \textbf{0.58}               \\ 
         UNH-p-SDM             & 0.15                 & 0.12                   & 0.25                  & 0.14                & \textbf{0.13}                  & 0.24               & 0.30                & 0.31                  & 0.47               \\ 
         UNH-p-mixed           & \textbf{0.16}                 & \textbf{0.14}                   & \textbf{0.25}                  & \textbf{0.15}                & \textbf{0.13}                  & 0.25               & 0.29                & 0.32                  & 0.47               \\ 
-        sectionPath-bm25-none & 0.14                 & 0.11                   & 0.26                  & 0.13                & 0.10                  & 0.25               & --                     & --                       & --                      \\ 
-        sectionPath-ql-none   & 0.13                 & 0.10                   & 0.25                  & 0.13                & 0.10                  & 0.25               & --                     & --                       & --                      \\ 
-        sectionPath-ql-rm     & 0.08                 & 0.05                  & 0.24                  & 0.08               & 0.06                 & 0.20               & --                     & --                       & --                      \\ 
-        sectionPath-bm25-rm   & 0.11                 & 0.08                  & 0.24                  & 0.11                & 0.09                 & 0.24               & --                     & --                       & --                      \\ \bottomrule
+        bm25-none & 0.14                 & 0.11                   & 0.26                  & 0.13                & 0.10                  & 0.25               & --                     & --                       & --                      \\ 
+        ql-none   & 0.13                 & 0.10                   & 0.25                  & 0.13                & 0.10                  & 0.25               & --                     & --                       & --                      \\ 
+        ql-rm     & 0.08                 & 0.05                  & 0.24                  & 0.08               & 0.06                 & 0.20               & --                     & --                       & --                      \\ 
+        bm25-rm   & 0.11                 & 0.08                  & 0.24                  & 0.11                & 0.09                 & 0.24               & --                     & --                       & --                      \\ \bottomrule
     \end{tabular}
     }
 \label{tab:passage}
@@ -423,7 +468,7 @@ On the automatic benchmarks Y1 Train and Y1 Test, UNH-p-mixed and UNH-e-mixed me
 
 \section{Evaluation on TREC News}
 
-We participate in the NEWS track entity ranking task with three variations of our Low-level entity retrieval features.
+We participate in the NEWS track entity ranking task. As no training data was provided, we participate with with three variations of our Low-level entity retrieval features.
 
 In this task, we are given a set of entities that we have to re-rank by importance for the article. Our approach is to use a part of the given news article (title or first paragraph) to construct a query. This query is used to retrieve entities from the entity index built from pages made available in CAR's allButBenchmark collection. We use BM25 with a whitelist to retrieve a re-ranking Wiki pages and rank the set of given entities according to their pages.
 
@@ -436,6 +481,38 @@ In this task, we are given a set of entities that we have to re-rank by importan
 The last method uses the entity context model in a non-standard way, where the whole page is used instead of short passages: After retrieving a feedback run of Wikipedia pages with BM25, each page is represented as bag-of-entity-link-targets. Using the relevance model \cite{lavrenko2017relevance}, we compute the distribution over expansion entities $P(E|Q)$. Instead of expanding the query with these entities, we use the distribution directly to produce a ranking of entities.
 
 $$ score(E|Q)= \sum_{D\in \text{ranking}} p(D|Q) p(E|D)$$
+
+The results are presented in Table \ref{tab:news-results}. We see that retrieving entities with the first paragraph (no ecm expansion) works best. For reference we include median and best run as provided by the NEWS organizers. Our best run performs above the median and slightly below the best run.
+
+
+% Preview source code for paragraph 0
+% Preview source code for paragraph 0
+
+\begin{table}
+\centering \caption{Performance of entity re-ranking methods on NEWS. $^{\triangledown}$marks
+methods with significant difference to best performing method according
+to a paired-t-test with $\alpha=0.05$.\label{tab:news-results}}
+%\resizebox{\columnwidth}{!}{%
+\begin{center}
+\begin{tabular}{llll}
+\toprule 
+\textbf{Method}  & \multicolumn{3}{c}{\textbf{NEWS}}\tabularnewline
+\cmidrule(lr){2-4}  & \textbf{MAP}  & \textbf{RPREC}  & \textbf{NDCG@5} \tabularnewline
+\midrule 
+UNH-ParaBm25 & $0.82\pm0.03$ & $0.72\pm0.04$ & $0.74\pm0.03$\tabularnewline
+UNH-TitleBm25 & $0.81\pm0.03$ & $0.71\pm0.04$ & $0.72\pm0.03$\tabularnewline
+UNH-ParaBm25Ecm & $0.71\pm0.04$$^{\triangledown}$ & $0.63\pm0.05$$^{\triangledown}$ & $0.55\pm0.04{}^{\triangledown}$\tabularnewline
+\midrule
+median run & N/A & $0.66$ & $0.62$\tabularnewline
+best run & N/A & $0.76$ & $0.82$\tabularnewline
+\bottomrule
+\end{tabular}
+\end{center}
+%} 
+\end{table}
+
+
+
 
 
 
