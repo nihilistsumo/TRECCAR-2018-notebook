@@ -163,7 +163,6 @@ Given a stub with page title $T$ and an tree-shaped outline of headings $H1$, $H
 
 The section path model is very popular among the TREC CAR community and usually works best as a standalone method. However, it has been argued that learning a weighted combination between title, internal, and leaf query models could give potentially even better performance.
 
-\todo{Can someone figure out why the citations look so ... rugged..?}
 
 \paragraph{Retrieval and expansion models:}
 
@@ -177,27 +176,21 @@ Given a query model to transform the stub into a keyword query and an index, we 
 We use as expansion models    
 \begin{itemize}
     \item none: No expansion. Just use the initial retrieval.
-    \item RM3 expansion (custom implementation \cite{lavrenko2017relevance}) using 20 top paragraphs/pages to expand with 20 terms.
+    \item RM Relevance model expansion (custom implementation \cite{lavrenko2017relevance}) using 20 top paragraphs/pages to expand with 20 terms. This is an RM1-style ranking intended to be combined with the basic ranking model (to yield RM3).
     \item ECM expansion: a variant of the entity context model \cite{dalton2014entity} that represents a feedback run as a bag-of-entity-targets, then uses the relevance model to compute an distribution of expansion entities. Produces a ranking of entity according to the expansion probability. Uses top 100 paragraphs/pages.
     \item ECM-psg expansion: Like ECM expansion but expands the keyword query with top 20 expansion entities.
 \end{itemize}
 
 
-
-
-
 \subsection{Low-level Paragraph Retrieval Features}\label{sec:para}
 
-We have used the following ranking and expansion models for the paragraph retrieval task.
+We  use the following ranking and expansion models for the L2R paragraph retrieval task.
 \begin{itemize}
     \item sectionPath-bm25-none: BM25 retrieval model
     \item sectionPath-ql-none: Query likelihood retrieval model (no expansion)
     \item sectionPath-bm25-rm: BM25-based relevance feedback
     \item sectionPath-ql-rm: Query likelihood-based relevance feedback
 \end{itemize}
-For all of them we derive the retrieval query from the section path associated with the heading. The section paths includes all words from the page title, and all parent headings, including the words of heading $H_i$ for which the ranking is created.
-
-All of these runs were created with Lucene (v7) with the english analyzer package. A custom implementation of the relevance model \cite{lavrenko2017relevance} was used.
 
 \subsection{Results}
 
@@ -220,13 +213,13 @@ sectionPath-ql-rm & 0.0744 & 0.0493 & 0.1180 \\
 \label{sec:entity}
 
 
-
+For L2R entity ranking we use the following models:
 
 \begin{itemize}
-\item sectionPath-bm25-ecm: ECM ranking based on BM25 passage retrieval using section path queries.
+\item sectionPath-bm25-ecm: ECM ranking based on BM25 page retrieval using section path queries.
 \item sectionPath-ql-ecm: ECM ranking based on Query likelihood using section paths queries.
-\item all-bm25-ecm: ECM ranking based on BM25 passage retrieval using all headings in the stub.
-\item all-ql-ecm: ECM ranking based on 
+\item all-bm25-ecm: ECM ranking based on BM25 page retrieval using all headings in the stub.
+\item all-ql-ecm: ECM ranking based on QL passage page retrieval a query of all headings in the stub.
 
 %   \item query-level: section path, all
 %    \item retrieval-model: BM25, Query Likelihood
