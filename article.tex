@@ -189,7 +189,7 @@ The rankings were annotated with the highest ranked paragraph from an additional
 \section{UNH-p-SDM}\label{sec:sdm}
 
 We use Lucene to index the TREC CAR 2017 paragraph corpus after stemming and removing stopwords.
-The UNH-p-SDM method is inspired by the Sequential Dependence model \cite{metzler2005markov} in that it combines unigrams, bigrams, and windowed-bigrams. However, where the original approach by Metzler used language models (such as query likelihood) as features, here we use BM25 as a basis for scoring the relevance of documents given a query. We do so by indexing the unigrams, bigrams, and unordered windowed-bigrams (with a window size of 8 words) as document fields. We then consider three features that score document relevance with respect to these fields:
+The UNH-p-SDM method is inspired by the Sequential Dependence model \cite{metzler2005markov} in that it combines unigrams, bigrams, and windowed-bigrams. However, where the original approach by Metzler used language models (such as query likelihood) as features, here we use BM25 as a basis for scoring the relevance of documents given a query. We do so by indexing the unigrams, bigrams, and unordered windowed-bigrams (with a window size of 8 words) as document fields using Lucene. We tokenize and stem documents using Lucene's English analyzer. We then consider three features that score document relevance with respect to these fields:
  
  \begin{itemize}
      \item Unigram: Unigrams in the query are used to retrieve and score passages via their unigram fields.
@@ -198,37 +198,30 @@ The UNH-p-SDM method is inspired by the Sequential Dependence model \cite{metzle
  \end{itemize}
  
 
-We learn a weighted combination of these three scores that best predicts the relevance of a passage.  We do so by using RankLib with coordinate ascent, optimized for best MAP performance.
+We learn a weighted combination of these three scores that best predicts the relevance of a passage.  We do so by using RankLib with coordinate ascent, optimized for best MAP performance. 
 
 
 \section{Joint Entity-Passage Methods}\label{sec:joint}
 
 
 %\subsection{Transforming Features}\label{sec:joint}
-In this work, we consider methods that can be used to jointly score entities and passages.
-As an example, consider a scenario where we have a passage and entities that have been linked to this passage.
-%Let $f_p$ be a feature that scores the relevance of a passage given a query. 
-If we know that the passage is relevant with respect to the query, we may also assume that all of the entities contained within this passage would also be relevant.
-Similarly, we can consider a passage's relevance to a query with respect to the relevance of the entities it contains.
-If we know all of the entities are relevant to a query, then it is likely that the passage that contains these entities is also relevant.
-In both cases, we assume that there is a relationship between passages and entities that lets us ``transfer'' query relevance between them.
-To make concrete this assumption, we present two methods for transforming entity and passage features.
+In this paper, we explore features that can be used to jointly score entities and passages. We do so using the following methods.
 
-\textbf{Passage Retrieval using Entity Features.} Let $f_e$ be a feature that scores the relevance of an entity with respect to a query.
+\textbf{Passage Retrieval using Entity Features.} Let $f_e$ be an entity relevance feature.
 For each passage, $p$, let $E$ be the set of entities contained in $p$.
 Then a feature that scores the relevance of $p$ given the relevance entities can be represented as $f_p(p) = \sum_{e \in E}{f_e(e)}$. 
 We are free to combine this feature with other passage features to rank retrieved passages according to relevance.
 
-\textbf{Entity Retrieval using Passage Features.} Let $f_p$ be a feature that scores the relevance of a passage with respect to a query.
+\textbf{Entity Retrieval using Passage Features.} Let $f_p$ be a passage relevance feature.
 For each entity, $e$, let $P$ be the set of passages that contain at least one instance of $e$.
-We represent the feature that scores the relevance of $e$ given the relevance of passages as $f_e(e) = \sum_{p \in P}{f_p(p)}$.
+We may sum over the scores of passages that contain $e$ to produce a score for $e$: $f_e(e) = \sum_{p \in P}{f_p(p)}$.
 
 \subsection{Description of Passage Features}\label{sec:jointpassage}
 We consider the following passage features for use in our joint entity-passage methods:
 
-\textbf{UNH-p-SDM. } We directly use the scores of passages obtained by the UNH-p-SDM passage retrieval method as a passage feature. 
+\textbf{UNH-p-SDM.} We directly use the scores of passages obtained by the UNH-p-SDM (see section~\ref{sec:sdm})) passage retrieval method as a passage feature. 
 
-\textbf{SDM:} Passages are scored using a standard SDM model under query likelihood, in the spirit of Metzler et al.\ \cite{metzler2005markov}.
+\textbf{SDM.} Passages are scored using a standard SDM model under query likelihood, in the spirit of Metzler et al.\ \cite{metzler2005markov}.
 
 
 \subsection{Description of Entity Features}\label{sec:jointentity}
@@ -238,7 +231,7 @@ We consider the following entity features for use in our joint entity-passage me
 \textbf{Entity Link Frequency. } We score an entity with respect to the relative frequency at which it was linked to by passages in a candidate set of passage. We do so by summing over the total number of times an entity was linked by candidate passages, and then normalization by the total number of entity links among all candidate passages. This measure is used either directly as an entity feature, or is transformed to a passage feature by summing over the relative entity frequencies of entities contained within a passage. 
 
 
-\textbf{Fielded Queries.} Because our entity index represents a collection of Wikipedia pages, we can consider page attributes as document fields. We store the following page attributes as document fields: (enwiki) categories, inlinks, outlinks, section headers, page name disambiguations, and page name redirects. We may score the relevance of each field with respect to the query by using the standard BM25 model, and we use this to score the relevance of the entity that the page represents. This feature can also be transformed into a passage feature.
+\textbf{Fielded Queries.} Because our entity index represents a collection of Wikipedia pages, we can consider page attributes as document fields. We store the following page attributes as unigrams in document fields: (enwiki) categories, inlinks, outlinks, section headers, page name disambiguations, and page name redirects. We score the relevance of entities with respect to the query by using the standard BM25 model.  This feature can also be transformed into a passage feature.
 
 
 \textbf{Global Entity Context.} Whenever a passage links to an entity in Wikipedia, we create a pseudo-document that contains the unigrams, bigrams, and windowed bigrams derived from that passage.  We consider the collection of all such pseudo-documents belonging to an entity as that entity's ``context'' in which it is mentioned. This differs from query-specific context models  \cite{dalton2014entity}, in that we use one global entity context model derived from the corpus. For each query, we construct a unigram, bigram, and windowed bigram query that is used to retrieve pseudo-documents from the global entity context index. 
@@ -248,7 +241,7 @@ Each pseudo-document represents a particular context in which an entity is menti
 
 \subsection{UNH-e-SDM}\label{sec:esdm}
 
-For our entity retrieval task, we derive the UNH-e-SDM method from the scores of candidate passages using the UNH-p-SDM passage feature (described in section~\ref{sec:jointpassage}). We score each candidate entity by summing over the scores of candidate passages that are linked to this entity. The candidate entities are retrieved by first retrieving the top 100 candidate passages using the UNH-p-SDM passage retrieval method, and then retrieving all entities linked to these candidate passages.
+For our entity retrieval task, we derive the UNH-e-SDM method from the scores of candidate passages using the UNH-p-SDM passage feature (described in section~\ref{sec:jointpassage}). We score each candidate entity by summing over the scores of candidate passages that are linked to this entity. We retrieve candidate entities by retrieving entities linked to the top 100 candidate passages ranked using the UNH-p-SDM passage retrieval method. 
 
 %\todo{discard the following section, in each section below, just say ``the candidate method is the top 100 UNH-p-SDM''}
 %\subsection{Retrieval and Joint Scoring}
