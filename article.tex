@@ -31,14 +31,15 @@ This notebook describes the submission of team TREMA-UNH to the TREC Complex Ans
 \section{Introduction}
 \label{S:1}
 
-Search engines continue to develop and so do the users' expectations of them. We explore ``search engines of the future'' that not only rank documents according to relevance, but also present all relevant information in a compact manner from which users are able to synthesize knowledge easily. Moreover, the goal is to develop search engines for complex retrieval tasks to understand how the information needs of users can be better met by improving  retrieval methods. To accomplish these tasks, we train the search engines to have a better understanding of natural language. 
+Users expectations of search engines continue grow with advancements of search engines and retrieval models. We explore ``search engines of the future'' that not only rank documents according to relevance, but also present all relevant information in a compact manner from which users are able to synthesize knowledge easily.  To accomplish this task, we train retrieval models to have a better understanding relevance for natural language. 
 
-The Complex Answer Retrieval (CAR)\cite{trecdata21} track at the Text Retrieval Conference (TREC)\footnote{\url{https://trec.nist.gov}} aims to address this scenario. Current retrieval systems provide good solutions towards phrase-level retrieval for simple fact and entity-centric needs. This track encourages research for answering more complex information needs with longer answers.
+The Complex Answer Retrieval (CAR)\cite{trecdata21} track at the Text Retrieval Conference (TREC)\footnote{\url{https://trec.nist.gov}} aims to address this scenario. Current retrieval systems provide good solutions towards passage retrieval for simple fact and entity-centric information needs.
+In contrast, CAR is about answering more complex information needs with longer answers.
 The formal task statement includes the two following tasks:
 
-\noindent \textbf{Passage Task:} Given an article stub $Q$, retrieve for each of its sections $H_i$, a ranking of relevant passages $P$. The passage $P$ is taken from a provided passage corpus.
+\noindent \textbf{CAR Passage Task:} Given an article stub $Q$, retrieve for each of its sections $H_i$, a ranking of relevant passages $P$. The passage $P$ is taken from a provided paragraph corpus. %that is the name of the corpus!
 
-\noindent \textbf{Entity Task:} Given an article stub $Q$, retrieve for each of its sections $H_i$, a ranking of relevant entities $E$. The entity $E$ is taken from a provided Wikipedia corpus. Additionally for each entity $E$, a support passage from the passage corpus is to be identified that explains why the entity is relevant for the heading $H_i$ on the stub.
+\noindent \textbf{CAR Entity Task:} Given an article stub $Q$, retrieve for each of its sections $H_i$, a ranking of relevant entities $E$. The entity $E$ is taken from a provided Wikipedia corpus. Additionally for each entity $E$, a support passage from the passage corpus is to be identified that explains why the entity is relevant for the heading $H_i$ on the stub.
 \medskip
 
 \noindent We further participate in the NEWS track entity ranking task. 
@@ -48,11 +49,12 @@ The formal task statement includes the two following tasks:
 \medskip 
 
 \section{Overarching Approach}
- For each page, we use the section headings from the page's outline as queries. However, the headings are usually very short. Hence, using retrieval models without query expansion (such as BM25) may not yield good results since headings have little textual overlap with their passages. To alleviate this problem, we experiment with various query expansion methods. We observe the performance of each of the methods individually. However, as any single unsupervised method may not provide best performance on its own, we also experiment with machine-learned combinations of each of the methods using learning-to-rank. 
+\label{ref:overarching}
+ For each page, we use the section headings from the page's outline as queries. The headings are usually very short. Hence, using retrieval models without query expansion (such as BM25) may not yield good results since headings have potentially little textual overlap with their passages. To alleviate this problem, we experiment with various entity- and word-based query expansion methods. We observe the performance of each of the methods individually. However, since any single unsupervised method may not provide best performance on its own, we also experiment with machine-learned combinations of methods using learning-to-rank.\footnote{\url{http://lemurproject.org/ranklib.php}} 
 
-The Knowledge Graph is a knowledge base used to enhance a search engine's results with information gathered from a variety of sources. It provides access to sophisticated knowledge about entities derived from external sources such as Wikipedia. Such knowledge graphs hold a wealth of information which can be leveraged to solve information retrieval problems. 
+A knowledge graph (KG) is used to enhance a retrieval models's results with information gathered from a variety of sources. The KG provides access to knowledge about entities and is derived from external sources such as Wikipedia. Here we use a Wikipedia dump\footnote{\texttt{unprocessedAllButBenchmark.v2.1.tar.xz}, Wikipedia dump from December 2016} provided by the TREC CAR organizers that does not include pages from test queries. Such knowledge graphs hold a wealth of information which can be leveraged to solve information retrieval problems. 
 
-In Section \ref{sec:para} we will first describe which unsupervised retrieval and expansion models were used for paragraph retrieval, and in Section \ref{sec:entity} for entity retrieval.  
+In Section \ref{sec:para} we first describe which unsupervised retrieval and expansion models were used for the passage task, and in Section \ref{sec:entity} for the entity task.  
 
 %This was already said above.
 %The section headings and paragraphs in the TREC-CAR dataset are not generated from the same model. Section headings are constructed in such a way that they best capture the prevalent ideas expressed in the paragraphs under them. Conversely, paragraphs could be seen as elaboration of the the section heading. Hence, for the passage retrieval task, there is little chance of success if we try to directly map section headings to paragraph texts. Hence, we try to estimate the language model over top-k TF-IDF words of the feedback run and use it to map paragraphs to section headings.
@@ -61,6 +63,7 @@ In Section \ref{sec:para} we will first describe which unsupervised retrieval an
 %\section{Related Work and Background}
 %\label{S:2}
 \section{Low-level Retrieval Features}
+\label{sec:low-level}
 
 Each of our approaches are based on a variety of unsupervised retrieval models and document indexes that we describe in the following.
 
@@ -69,15 +72,15 @@ Each of our approaches are based on a variety of unsupervised retrieval models a
 We create the following indexes for use with our retrieval methods. 
 \begin{itemize}
     \item A paragraph index out of the text in passages of the \texttt{paragraphCorpus}.
-    \item A page index out of text Wikipedia pages in \texttt{allButBenchmark}. 
+    \item A page index out of all visible text on Wikipedia pages in \texttt{allButBenchmark}. 
     \item An entity index out of the first paragraph, anchor text, and category info of Wikipedia in \texttt{allButBenchmark}.
     \item An ecm-paragraph index out of text in paragraphs in Wikipedia pages in \texttt{allButBenchmark}.
 \end{itemize}
 
-The name ecm-paragraph is in attribution to the entity context model \cite{dalton2014entity}, which uses passages with contained entity mentions for new expansion models. Where Dalton et al.\ uses passages from a feedback run, the ecm-paragraph index allows us to directly retrieve relevant passages before extracting entity-centric information.
+The name ecm-paragraph is in attribution to the entity context model \cite{dalton2014entity}, which uses passages with contained entity mentions for new expansion models. Where Dalton et al.\ \cite{dalton2014entity} uses passages surrounding entity links in a feedback run, the ecm-paragraph index allows us to directly retrieve relevant passages with entity-centric information.
 
 \paragraph{Query models:}
-Given a stub with page title $T$ and a tree-shaped outline of headings $H1$, $H1.1$, $H1.2$, $H1.2.1$, $H2$,... there are different ways to derive queries for retrieval with BM25, QL, etc for a particular heading, such as $H1.2$. The simplest approach is what we call \textit{section path queries}, which concatenates the page title, $T$, with all parent headings (in this example $H1$), along with the heading itself ($H1.2$), to derive the query. However, more options are possible such, as as:
+Given a stub with page title $T$ and a tree-shaped outline of headings $H1$, $H1.1$, $H1.2$, $H1.2.1$, $H2$,... there are different ways to derive queries for retrieval with BM25, QL, etc for text of a particular heading, such as $H1.2$. The simplest approach is what we call \textit{section path queries}, which concatenates the page title, $T$, with all parent headings (in this example $H1$), along with the heading itself ($H1.2$), to derive the query. However, more options are possible such, as as:
 
 \begin{itemize}
     \item Section Path: Concatenation of page title, parent headings, and heading (Example: $T, H1, H1.2$).
@@ -88,24 +91,24 @@ Given a stub with page title $T$ and a tree-shaped outline of headings $H1$, $H1
     \item Subtree: concatenation of all headings in the subtree rooted by the heading ($H1.2, H1.2.1$)
 \end{itemize}
 
-The section path model is very popular among the TREC CAR community and usually works best as a standalone method. However, it has been argued that learning a weighted combination between title, internal, and leaf query models could give potentially even better performance.
+The section path model is very popular among the TREC CAR participants and usually works best as a standalone method. However, it has been argued that learning a weighted combination between title, internal, and leaf query models could give potentially even better performance \cite{macavaney2018overcoming}.
 
 
 \paragraph{Retrieval and expansion models:}
 
-Given a query model to transform the stub into a keyword query and an index, and we  use different retrieval models to obtain a low-level ranking (which we will combine with different learning to rank methods in the following). In particular we use as retrieval models:
+Given a query model to transform the stub into a keyword query and an index, and we  use different retrieval models to obtain low-level rankings (which we will combine with different learning to rank methods in the following). In particular we use as retrieval models:
 
 \begin{itemize}
-    \item BM25, as implemented in Lucene.
-    \item Query likelihood, as implemented in Lucene.
+    \item BM25, as implemented in Lucene (using default parameters).
+    \item Query likelihood with Dirichlet smoothing, as implemented in Lucene.
 \end{itemize}
 
 We use as expansion models    
 \begin{itemize}
-    \item None: No expansion. Just uses the initial retrieval.
-    \item RM Relevance model expansion (custom implementation \cite{lavrenko2017relevance}) using 20 top paragraphs/pages to expand with 20 terms. This is an RM1-style ranking that is intended to be combined with the basic ranking model (to yield RM3).
-    \item ECM expansion: a variant of the entity context model \cite{dalton2014entity} that represents a feedback run as a bag-of-entity-targets, then uses the relevance model to compute a distribution over expanded entities. Produces a ranking of entities according to the expansion probability of an entity. Uses top 100 paragraphs/pages.
-    \item ECM-psg expansion: Like ECM expansion but expands the keyword query with top 20 expanded entities.
+    \item None: No expansion. Just uses the initial ranking.
+    \item RM3: RM Relevance model expansion \cite{lavrenko2017relevance} using 20 top paragraphs/pages to expand with 20 terms. This is an RM1-style ranking that is intended to be combined with the basic ranking model (to yield RM3).
+    \item ECM: ECM expansion: a variant of RM3 inspired by the entity context model \cite{dalton2014entity}. Documents in the feedback run are represented as a bag-of-entity-link-targets, therefore the relevance model computes a distribution over expanded entities. The result is a ranking of entities according to the expansion probability of an entity. Uses top 100 paragraphs/pages.
+    \item ECM-psg: Like ECM expansion but expands the keyword query with top 20 expansion entities.
 \end{itemize}
 
 We provide all low-level runs for benchmarkY1train, benchmarkY1test and benchmarkY2test online.\footnote{Available at \url{http://trec-car.cs.unh.edu/runs/TREMA-UNH}} 
@@ -113,12 +116,12 @@ We provide all low-level runs for benchmarkY1train, benchmarkY1test and benchmar
 
 \subsection{Low-level Paragraph Retrieval Features}\label{sec:para}
 
-We  use the following ranking and expansion models for the L2R paragraph retrieval task.
+We  use the following pararaph ranking and expansion models to derive features for  learning-to-rank for the passage task (decribed in the following sections).
 \begin{itemize}
-    \item sectionPath-bm25-none: BM25 retrieval model
-    \item sectionPath-ql-none: Query likelihood retrieval model (no expansion)
-    \item sectionPath-bm25-rm: BM25-based relevance feedback
-    \item sectionPath-ql-rm: Query likelihood-based relevance feedback
+    \item sectionPath-bm25-none: Using section path queries, BM25 retrieval model (no expansion) 
+    \item sectionPath-ql-none: Using section path queries, Query likelihood retrieval model (no expansion)
+    \item sectionPath-bm25-rm: Using section path queries, BM25-based RM3
+    \item sectionPath-ql-rm: Using section path queries, query likelihood-based RM3
 \end{itemize}
 
 The results of low-level retrieval methods are presented in Table \ref{tab:para}.
@@ -142,25 +145,28 @@ sectionPath-ql-rm & 0.0744 & 0.0493 & 0.1180 \\
 \label{sec:entity}
 
 
-For L2R entity ranking we use the following models:
+We  use the following ranking and expansion models to derive features for  learning-to-rank for the entity task (decribed in the following sections).
+
 
 \begin{itemize}
-\item sectionPath-bm25-ecm: ECM ranking based on BM25 page retrieval using section path queries.
-\item sectionPath-ql-ecm: ECM ranking based on Query likelihood using section paths queries.
-\item all-bm25-ecm: ECM ranking based on BM25 page retrieval using all headings in the stub.
-\item all-ql-ecm: ECM ranking based on QL passage page retrieval a query of all headings in the stub.
+\item sectionPath-bm25-ecm: Using section path queries, BM25 ranking with ECM ranking based on BM25 page retrieval.
+\item sectionPath-ql-ecm: Same as above, but based on Query likelihood.
+\item all-bm25-ecm: Constructing a query from title and all headings on the outline,  ECM ranking based on BM25 page.
+\item all-ql-ecm: Same as above, but based on Query likelihood.
 
 %   \item query-level: section path, all
 %    \item retrieval-model: BM25, Query Likelihood
 %    \item expansion-model: Entity Context Model
     \end{itemize}
 
+These were then combined using  learning-to-rank and a combined ranking was obtained. 
+This model is trained on benchmarkY1-train, using the tree-level ground truth for the passage task.    
 
 \section{UNH-p-l2r}
 
-Interpreting the set of rank scores (using Section \ref{sec:para}) for a particular paragraph as features, we learn how to optimally combine. We do so by using the coordinate ascent algorithm of RankLib's learning to rank implementation, optimized by mean average precision. 
+Interpreting the set of rank scores (using Section \ref{sec:para}) for a particular paragraph as features, we learn how to optimally combine these features into a weighted combination. We train the model using the coordinate ascent algorithm of RankLib's learning to rank implementation, optimized for mean average precision. 
 
-We consider combinations of:
+We train combinations of:
 \begin{itemize}
     \item sectionPath-bm25-none: BM25 retrieval model
     \item sectionPath-ql-none: Query likelihood retrieval model (no expansion)
@@ -170,18 +176,22 @@ We consider combinations of:
 
 \section{UNH-e-l2r}
 
-We create four Lucene indexes for use with our UNH-e-l2r method: aspect, entity, page and paragraph. We create features for each index by combining query-level, retrieval-model, and expansion-model methods as follows:
+Using Lucene indexes for %aspect,
+entity, page and paragraph (as described in Section \ref{sec:low-level}). We create features for each index by combining query-level, retrieval-model, and expansion-model methods as follows:
 
+We train combinations of (across all choices of entity, page and paragraph indexes):
 \begin{itemize}
-   \item Query-level: section path, all
-    \item Retrieval-model: BM25, Query Likelihood
-    \item Expansion-model: Entity Context Model
+    \item sectionPath-bm25-ecm: Section-path BM25 retrieval model with ecm entity ranking
+    \item sectionPath-ql-ecm: Same as above but with Query likelihood instead of BM25
+    \item all-bm25-ecm: Query from title and all headings using BM25 retrieval model with ecm entity ranking
+    \item all-ql-ecm: Same as above but with Query likelihood instead of BM25
 \end{itemize}
 
-Different indexes for retrieving entities and paragraphs are built from allButBenchmark and paragraphCorpus to obtain 10 rankings over Wikipedia pages or paragraphs. Using the entity context model, we build entity relevance models (rankings over entity ids) from the pages/paragraphs, which are used as a ranking of entities. The particular run files are created by using a section path query to retrieve from these indices with BM25 and query likelihood. Additionally, paragraphs are retrieved by building a query from all headings of the topic page.
+
+%Different indexes for retrieving entities and paragraphs are built from allButBenchmark and paragraphCorpus to obtain 10 rankings over Wikipedia pages or paragraphs. Using the entity context model, we build entity relevance models (rankings over entity ids) from the pages/paragraphs, which are used as a ranking of entities. The particular run files are created by using a section path query to retrieve from these indices with BM25 and query likelihood. Additionally, paragraphs are retrieved by building a query from all headings of the topic page.
 
 These were then combined using  learning-to-rank and a combined ranking was obtained. 
-This model is trained on benchmarkY1-train, using the document tree ground truth.
+This model is trained on benchmarkY1-train, using the tree-level ground truth for the entity task.
 
 The rankings were annotated with the highest ranked paragraph from an additional paragraph ranking as described below.
 
@@ -189,23 +199,23 @@ The rankings were annotated with the highest ranked paragraph from an additional
 \section{UNH-p-SDM}\label{sec:sdm}
 
 We use Lucene to index the TREC CAR 2017 paragraph corpus after stemming and removing stopwords.
-The UNH-p-SDM method is inspired by the Sequential Dependence model \cite{metzler2005markov} in that it combines unigrams, bigrams, and windowed-bigrams. However, where the original approach by Metzler used language models (such as query likelihood) as features, here we use BM25 as a basis for scoring the relevance of documents given a query. We do so by indexing the unigrams, bigrams, and unordered windowed-bigrams (with a window size of 8 words) as document fields using Lucene. We tokenize and stem documents using Lucene's English analyzer. We then consider three features that score document relevance with respect to these fields:
+The UNH-p-SDM method is inspired by the Sequential Dependence model \cite{metzler2005markov} in that it combines unigrams, bigrams, and windowed-bigrams. However, where the original approach by Metzler et al.\ used language models (such as query likelihood) as features, here we use BM25 as a basis for scoring the relevance of documents given a query. We do so by indexing the unigrams, bigrams, and unordered windowed-bigrams (with a window size of eight words) as document fields using Lucene. We tokenize and stem documents using Lucene's English analyzer. We then consider three features that score document relevance with respect to these fields:
  
  \begin{itemize}
      \item Unigram: Unigrams in the query are used to retrieve and score passages via their unigram fields.
-     \item Bigram: Bigrams in the query are used to retrieve and score passages via their bigram fields with BM25/QL
-     \item Windowed-bigram: Unordered Windowed bigrams in the query are used to retrieve and score passages via their windowed bigram fields (this is technically another departure from Metzler, who would have issued ordered query bigrams against the windowed bigrams field.)
+     \item Bigram: Bigrams in the query are used to retrieve and score passages via their bigram fields with BM25/QL.
+     \item Windowed-bigram: Unordered windowed bigrams in the query are used to retrieve and score passages via their windowed bigram fields. 
  \end{itemize}
  
 
-We learn a weighted combination of these three scores that best predicts the relevance of a passage.  We do so by using RankLib with coordinate ascent, optimized for best MAP performance. 
+We train a weighted combination of these three scores that best predicts the relevance of a passage.  We do so by using RankLib with coordinate ascent, optimized for best MAP performance. 
 
 
 \section{Joint Entity-Passage Methods}\label{sec:joint}
 
 
 %\subsection{Transforming Features}\label{sec:joint}
-In this paper, we explore features that can be used to jointly score entities and passages. We do so using the following methods.
+In this paper, we explore features that can be used to jointly score entities and passages. We do so using the following approaches.
 
 \textbf{Passage Retrieval using Entity Features.} Let $f_e$ be an entity relevance feature.
 For each passage, $p$, let $E$ be the set of entities contained in $p$.
@@ -213,7 +223,7 @@ Then a feature that scores the relevance of $p$ given the relevance entities can
 We are free to combine this feature with other passage features to rank retrieved passages according to relevance.
 
 \textbf{Entity Retrieval using Passage Features.} Let $f_p$ be a passage relevance feature.
-For each entity, $e$, let $P$ be the set of passages that contain at least one instance of $e$.
+For each entity, $e$, let $P$ be the set of passages (retrieved with UNH-p-SDM) that contain at least one instance of $e$.
 We may sum over the scores of passages that contain $e$ to produce a score for $e$: $f_e(e) = \sum_{p \in P}{f_p(p)}$.
 
 \subsection{Description of Passage Features}\label{sec:jointpassage}
@@ -223,12 +233,14 @@ We consider the following passage features for use in our joint entity-passage m
 
 \textbf{SDM.} Passages are scored using a standard SDM model under query likelihood, in the spirit of Metzler et al.\ \cite{metzler2005markov}.
 
+We convert these passage features into into entity features as described above.
+
 
 \subsection{Description of Entity Features}\label{sec:jointentity}
 We consider the following entity features for use in our joint entity-passage methods:
 
 
-\textbf{Entity Link Frequency. } We score an entity with respect to the relative frequency at which it was linked to by passages in a candidate set of passage. We do so by summing over the total number of times an entity was linked by candidate passages, and then normalization by the total number of entity links among all candidate passages. This measure is used either directly as an entity feature, or is transformed to a passage feature by summing over the relative entity frequencies of entities contained within a passage. 
+\textbf{Entity Link Frequency. } We score an entity with respect to the relative frequency at which it was linked to by passages in a candidate set of passage. We do so by summing over the total number of times an entity was linked by candidate passages, and then normalizing by the total number of entity links among all candidate passages. %This feature is used either directly as an entity feature, or is transformed to a passage feature by summing over the relative entity frequencies of entities contained within a passage. 
 
 
 \textbf{Fielded Queries.} Because our entity index represents a collection of Wikipedia pages, we can consider page attributes as document fields. We store the following page attributes as unigrams in document fields: (enwiki) categories, inlinks, outlinks, section headers, page name disambiguations, and page name redirects. We score the relevance of entities with respect to the query by using the standard BM25 model.  This feature can also be transformed into a passage feature.
@@ -239,9 +251,13 @@ We consider the following entity features for use in our joint entity-passage me
 Pseudo-documents are scored with respect to the standard BM25 model.
 Each pseudo-document represents a particular context in which an entity is mentioned in a passage, and we let an entity's score be equal to the highest scored context in which it was mentioned. We obtain one such score for each of the retrieval methods (unigrams, bigrams, and windowed bigrams). We treat each score as a separate entity feature.
 
+\smallskip
+All these features are used either directly as an entity feature, or they are transformed to a passage feature by summing over the relative entity frequencies of entities contained within a passage. 
+
+
 \subsection{UNH-e-SDM}\label{sec:esdm}
 
-For our entity retrieval task, we derive the UNH-e-SDM method from the scores of candidate passages using the UNH-p-SDM passage feature (described in section~\ref{sec:jointpassage}). We score each candidate entity by summing over the scores of candidate passages that are linked to this entity. We retrieve candidate entities by retrieving entities linked to the top 100 candidate passages ranked using the UNH-p-SDM passage retrieval method. 
+For our entity retrieval task, we derive an entity ranking (the UNH-e-SDM) from the scores of candidate passages using the UNH-p-SDM passage feature as described in Section~\ref{sec:jointpassage}. We score each candidate entity by summing over the scores of candidate passages that are linked to this entity. We retrieve candidate entities by retrieving entities linked to the top 100 candidate passages ranked using the UNH-p-SDM passage retrieval method. 
 
 %\todo{discard the following section, in each section below, just say ``the candidate method is the top 100 UNH-p-SDM''}
 %\subsection{Retrieval and Joint Scoring}
@@ -298,40 +314,40 @@ For our entity retrieval task, we derive the UNH-e-SDM method from the scores of
 
 \subsection{UNH-p-Mixed}\label{sec:pmixed}
 
-The UNH-p-mixed method is a passage retrieval method that utilizes all of the passage features described in section~\ref{sec:jointpassage} (UNH-p-SDM and SDM). This method also uses all of the entity features described in section~\ref{sec:jointentity} (entity link frequency, the six fielded query features, and the three entity context features), however these entity features are transformed into passage features. As previously described, we score passages using entity features by summing over the scores of entities contained within each passage.  
+The UNH-p-mixed method is a passage retrieval method that utilizes all of the passage features described in section~\ref{sec:jointpassage} (UNH-p-SDM and SDM). This method also uses all of the entity features described in section~\ref{sec:jointentity} (entity link frequency, the six fielded query features, and the three entity context features), which are transformed into passage features. As previously described, we score passages using entity features by summing over the scores of entities contained within each passage.  
 
-The top 100 candidate passages are retrieved using the UNH-p-SDM passage retrieval method, and all entities linked to these passages are retrieved as candidate entities. Candidate entities and passages are scored using the above features. Finally, we learn a weighted combination of these passage features and transformed features using learning to rank (where queries and query relevance is derived from the section path model described previously). However, we find that UNH-p-SDM feature receives the highest weight.
+The top 100 candidate passages are retrieved using the UNH-p-SDM passage retrieval method, and all entities linked to these passages are used as candidate entities. Candidate entities and passages are scored using the above features. Finally, we learn a weighted combination of these passage features and transformed features using learning to rank (where queries and query relevance is derived from the section path model described previously). We find that UNH-p-SDM feature receives the highest weight.
 
 
 
 \subsection{UNH-e-Mixed}\label{sec:emixed}
 
-The UNH-e-mixed method is an entity retrieval method that utilizes all of the entity features described in section~\ref{sec:jointentity} (entity link frequency, the six fielded query features, and the three entity context features), in addition to all of the passage features described in section~\ref{sec:jointpassage} (UNH-p-SDM and SDM). The passage features are transformed into entity features such that the score of each entity is equal to the sum of the scores of passages that link to the entity, as mentioned in section~\ref{sec:joint}.
+The UNH-e-mixed method is an entity retrieval method that utilizes all of the entity features described in section~\ref{sec:jointentity} (entity link frequency, the six fielded query features, and the three entity context features), in addition to all of the passage features described in section~\ref{sec:jointpassage} (UNH-p-SDM and SDM). The passage features are transformed into entity features such that the score of each entity is equal to the sum of the scores of passages that link to the entity, as mentioned in Section~\ref{sec:joint}.
 
 
 
-Our candidate passages and entities are retrieved using the approach described in section~\ref{sec:pmixed}. We again use learning to rank (and the section path query model) to learn a linear combination of entity features and transformed passage features.
+Our candidate passages and entities are retrieved using the approach described in Section~\ref{sec:pmixed}. We again use learning to rank (and the section path query model) to learn a linear combination of entity features and transformed passage features.
 
 
 
 \section{UNH-e-graph}
 
-We consider a graph where entities are nodes and paragraphs form edges between all nodes that are contained in the paragraph. Degree Centrality, PageRank, Personalized PageRank, HITS, or SALSA could be applied to this graph to identify important nodes. However, unsupervised graph walk methods have no knowledge of relevance for the query. 
+We consider a graph where entities are nodes and paragraphs form edges between all nodes that are contained in the paragraph. Degree Centrality, PageRank, Personalized PageRank, HITS, or SALSA could be applied to this graph to identify important nodes. However, unsupervised graph walk methods have no knowledge of relevance for the query, and therefore suffer from concept drift. 
 
 We explore a novel, unpublished method for ``Learning to Walk'', where nodes and edges are associated with feature vectors that quantify their relevance for the query---these are derived by unsupervised rank scores such as BM25 or relevance models. It is possible to derive an optimization algorithm to optimize weight parameters for node and edge features, so that the entity ranking produced by the degree centrality in the graph obtains the best MAP performance.
 
 Similar to traditional learning to rank approaches, features are derived from different unsupervised ranking functions. 
-For that different indexes for retrieving entities  are built from allButBenchmark and an index for retrieving paragraphs from  paragraphCorpus. Rankings of entities provide a feature vector for nodes, Rankings of paragraphs provide a feature vector for edges.  The Learning-to-Walk algorithm is used to train optimal weight parameters. The Learning-to-Walk is trained with mini-batched coordinate ascent on benchmarkY1train with to optimize MAP of entity rankings.
+We use indexes described in Section \ref{sec:overarching}. Rankings of entities provide a feature vector for nodes; rankings of paragraphs provide a feature vector for edges.  The Learning-to-Walk algorithm is used to train optimal weight parameters. The Learning-to-Walk is trained with mini-batched coordinate ascent on benchmarkY1train with to optimize MAP of entity rankings.
 
-In contrast to our other methods, this one is trained with a custom version of a tree-qrels, created as follows: Each wiki page of pages in the benchmarkY1train and benchmarkY1test is entity linked with DBpedia Spotlight. Then all predicted entity links are compared to link targets that were manually included in the page by Wikipedia editors. Spotlight links are only retained if the Wikipedia editor had included a link to the same target (anywhere on the page).  The main concern is that due to Wikipedia's editorial policies, only the first mention of an entity of a page is annotated with a hyperlink to the entity. However, central entities may get mentioned several more times on the page, possibly in other sections. Without fixing this standard, the concern was that when relevant entities are included in the ranking, we don't want the qrels file to (falsely) indicate that the entity is non-relevant.
+In contrast to our other methods, this one is trained with a custom version of a tree-qrels, created as follows: Each wiki page in the benchmarkY1train and benchmarkY1test is entity linked with DBpedia Spotlight. Then all predicted entity links are compared to link targets that were manually included in the page by Wikipedia editors. Spotlight links are only retained if the Wikipedia editor had included a link to the same target (anywhere on the page).  The main concern is that due to Wikipedia's editorial policies, only the first mention of an entity of a page is annotated with a hyperlink to the entity. However, central entities may get mentioned several more times on the page, possibly in other sections. Without fixing this ground truth, the concern was that when relevant entities are included in the ranking, we don't want the qrels file to (falsely) indicate that the entity is non-relevant.
 
-We train several variations of this method and select the best variation for submission as ``UNH-e-graph''. We found in earlier experiments that including ecm-expansion leads to even better performance. However, we were concerned that this feature would not generalize well to non-Wikipedia collections and did not include it in the variant submitted.
+We train several variations of this method and select the best variation for submission as ``UNH-e-graph''. We found in post-mortem experiments that including ecm-expansion would lead to even better performance. However, we were concerned that this feature would not generalize well to non-Wikipedia collections and did not include it in the variant submitted.
 
 \section{Support Passage for Entity Rankings}
 
 The entity ranking is augmented with support passages that are supposed to explain to a user how this entity is relevant for the heading $H_i$.
 
-We first compute an entity ranking without support passages, then extend it as follows. We use a paragraph ranking obtained using one of our paragraph ranking methods. For every entity in the ranking, we return the first paragraph in the ranking which contains this entity. We  repeat this for all entities in the entity list of the query and for all queries and produce a run file in the TREC CAR entity ranking task format. The score of a paragraph given a query and entity in this combined run file is the original score of the entity.
+We first compute an entity ranking without support passages, then extend it as follows. We use a paragraph ranking obtained using one of our paragraph ranking methods. For every entity in the ranking, we return the first paragraph in the ranking which contains this entity. We use the entity-passage pairs to produce a run file in the TREC CAR entity ranking task format. The score of a paragraph given a query and entity in this combined run file is the original score of the entity.
 
 
 \section{Evaluation on TREC Complex Answer Retrieval}
