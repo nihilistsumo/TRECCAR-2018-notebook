@@ -49,7 +49,7 @@ The formal task statement includes the two following tasks:
 \medskip 
 
 \section{Overarching Approach}
-\label{ref:overarching}
+\label{sec:overarching}
  For each page, we use the section headings from the page's outline as queries. The headings are usually very short. Hence, using retrieval models without query expansion (such as BM25) may not yield good results since headings have potentially little textual overlap with their passages. To alleviate this problem, we experiment with various entity- and word-based query expansion methods. We observe the performance of each of the methods individually. However, since any single unsupervised method may not provide best performance on its own, we also experiment with machine-learned combinations of methods using learning-to-rank.\footnote{\url{http://lemurproject.org/ranklib.php}} 
 
 A knowledge graph (KG) is used to enhance a retrieval models's results with information gathered from a variety of sources. The KG provides access to knowledge about entities and is derived from external sources such as Wikipedia. Here we use a Wikipedia dump\footnote{\texttt{unprocessedAllButBenchmark.v2.1.tar.xz}, Wikipedia dump from December 2016} provided by the TREC CAR organizers that does not include pages from test queries. Such knowledge graphs hold a wealth of information which can be leveraged to solve information retrieval problems. 
@@ -74,10 +74,10 @@ We create the following indexes for use with our retrieval methods.
     \item A paragraph index out of the text in passages of the \texttt{paragraphCorpus}.
     \item A page index out of all visible text on Wikipedia pages in \texttt{allButBenchmark}. 
     \item An entity index out of the first paragraph, anchor text, and category info of Wikipedia in \texttt{allButBenchmark}.
-    \item An ecm-paragraph index out of text in paragraphs in Wikipedia pages in \texttt{allButBenchmark}.
+%    \item An ecm-paragraph index out of text in paragraphs in Wikipedia pages in \texttt{allButBenchmark}.
 \end{itemize}
 
-The name ecm-paragraph is in attribution to the entity context model \cite{dalton2014entity}, which uses passages with contained entity mentions for new expansion models. Where Dalton et al.\ \cite{dalton2014entity} uses passages surrounding entity links in a feedback run, the ecm-paragraph index allows us to directly retrieve relevant passages with entity-centric information.
+
 
 \paragraph{Query models:}
 Given a stub with page title $T$ and a tree-shaped outline of headings $H1$, $H1.1$, $H1.2$, $H1.2.1$, $H2$,... there are different ways to derive queries for retrieval with BM25, QL, etc for text of a particular heading, such as $H1.2$. The simplest approach is what we call \textit{section path queries}, which concatenates the page title, $T$, with all parent headings (in this example $H1$), along with the heading itself ($H1.2$), to derive the query. However, more options are possible such, as as:
@@ -107,9 +107,16 @@ We use as expansion models
 \begin{itemize}
     \item None: No expansion. Just uses the initial ranking.
     \item RM3: RM Relevance model expansion \cite{lavrenko2017relevance} using 20 top paragraphs/pages to expand with 20 terms. This is an RM1-style ranking that is intended to be combined with the basic ranking model (to yield RM3).
-    \item ECM: ECM expansion: a variant of RM3 inspired by the entity context model \cite{dalton2014entity}. Documents in the feedback run are represented as a bag-of-entity-link-targets, therefore the relevance model computes a distribution over expanded entities. The result is a ranking of entities according to the expansion probability of an entity. Uses top 100 paragraphs/pages.
-    \item ECM-psg: Like ECM expansion but expands the keyword query with top 20 expansion entities.
+    \item ECM: A variant of RM3 representing a document as a bag-of-entity-link-targets. Uses top 100 paragraphs/pages.
+    \item ECM-psg: Like ECM expansion but expands the keyword query with top 100 expansion entities.
 \end{itemize}
+
+Ecm uses the entity context model in a non-standard way, where the whole page is used instead of short passages: After retrieving a feedback run of paragraphs or Wikipedia pages with BM25, each page is represented as bag-of-entity-link-targets. Using the relevance model \cite{lavrenko2017relevance}, we compute the distribution over expansion entities $P(E|Q)$. We discuss two variants, in \textbf{ecm-passage} we expand the query with these entities to retrieve a new ranking. In \textbf{ecm} we use the distribution directly to produce a ranking of entities.
+
+$$ score(E|Q)= \sum_{D\in \text{ranking}} p(D|Q) p(E|D)$$
+
+The name ecm is in attribution to the entity context model \cite{dalton2014entity}, which uses passages with contained entity mentions for new expansion models. Where Dalton et al.\ \cite{dalton2014entity} uses passages surrounding entity links in a feedback run, the ecm-paragraph index allows us to directly retrieve relevant passages with entity-centric information.
+
 
 We provide all low-level runs for benchmarkY1train, benchmarkY1test and benchmarkY2test online.\footnote{Available at \url{http://trec-car.cs.unh.edu/runs/TREMA-UNH}} 
 
@@ -217,12 +224,12 @@ We train a weighted combination of these three scores that best predicts the rel
 %\subsection{Transforming Features}\label{sec:joint}
 In this paper, we explore features that can be used to jointly score entities and passages. We do so using the following approaches.
 
-\textbf{Passage Retrieval using Entity Features.} Let $f_e$ be an entity relevance feature.
+\textbf{Passage retrieval using entity features.} Let $f_e$ be an entity relevance feature.
 For each passage, $p$, let $E$ be the set of entities contained in $p$.
 Then a feature that scores the relevance of $p$ given the relevance entities can be represented as $f_p(p) = \sum_{e \in E}{f_e(e)}$. 
 We are free to combine this feature with other passage features to rank retrieved passages according to relevance.
 
-\textbf{Entity Retrieval using Passage Features.} Let $f_p$ be a passage relevance feature.
+\textbf{Entity retrieval using passage features.} Let $f_p$ be a passage relevance feature.
 For each entity, $e$, let $P$ be the set of passages (retrieved with UNH-p-SDM) that contain at least one instance of $e$.
 We may sum over the scores of passages that contain $e$ to produce a score for $e$: $f_e(e) = \sum_{p \in P}{f_p(p)}$.
 
@@ -332,14 +339,16 @@ Our candidate passages and entities are retrieved using the approach described i
 
 \section{UNH-e-graph}
 
-We consider a graph where entities are nodes and paragraphs form edges between all nodes that are contained in the paragraph. Degree Centrality, PageRank, Personalized PageRank, HITS, or SALSA could be applied to this graph to identify important nodes. However, unsupervised graph walk methods have no knowledge of relevance for the query, and therefore suffer from concept drift. 
+We consider a graph where entities are nodes and paragraphs form edges between all nodes that are contained in the paragraph. Degree centrality, PageRank, personalized PageRank, HITS, or SALSA could be applied to this graph to identify important nodes. However, unsupervised graph walk methods have no knowledge about which edges are relevant for the query, and therefore suffer from concept drift. 
 
-We explore a novel, unpublished method for ``Learning to Walk'', where nodes and edges are associated with feature vectors that quantify their relevance for the query---these are derived by unsupervised rank scores such as BM25 or relevance models. It is possible to derive an optimization algorithm to optimize weight parameters for node and edge features, so that the entity ranking produced by the degree centrality in the graph obtains the best MAP performance.
+We explore a novel, unpublished method for ``Learning to Walk'', where nodes and edges are associated with feature vectors that quantify their relevance for the query---these are derived by unsupervised rank scores such as BM25 or relevance models. It is possible to derive an optimization algorithm to optimize weight parameters for node and edge features, so that the entity ranking produced by applying degree centrality to the graph obtains the best MAP performance.
 
 Similar to traditional learning to rank approaches, features are derived from different unsupervised ranking functions. 
-We use indexes described in Section \ref{sec:overarching}. Rankings of entities provide a feature vector for nodes; rankings of paragraphs provide a feature vector for edges.  The Learning-to-Walk algorithm is used to train optimal weight parameters. The Learning-to-Walk is trained with mini-batched coordinate ascent on benchmarkY1train with to optimize MAP of entity rankings.
+We use indexes described in Section \ref{sec:overarching}. Rankings of entities provide a feature vector for nodes; rankings of paragraphs provide a feature vector for edges.  The Learning-to-Walk algorithm is used to train weight parameters to optimize for MAP on entity rankings. The Learning-to-Walk is trained with mini-batched coordinate ascent using five restarts on benchmarkY1train.
 
-In contrast to our other methods, this one is trained with a custom version of a tree-qrels, created as follows: Each wiki page in the benchmarkY1train and benchmarkY1test is entity linked with DBpedia Spotlight. Then all predicted entity links are compared to link targets that were manually included in the page by Wikipedia editors. Spotlight links are only retained if the Wikipedia editor had included a link to the same target (anywhere on the page).  The main concern is that due to Wikipedia's editorial policies, only the first mention of an entity of a page is annotated with a hyperlink to the entity. However, central entities may get mentioned several more times on the page, possibly in other sections. Without fixing this ground truth, the concern was that when relevant entities are included in the ranking, we don't want the qrels file to (falsely) indicate that the entity is non-relevant.
+In contrast to our other methods, this one is trained with a custom version of a tree-qrels, created as follows: For all queries in the benchmarkY1train and benchmarkY1test we obtain the Wikipedia page. These pages are entity linked with DBpedia Spotlight. Then all predicted entity links are compared to link targets that were manually included in the page by Wikipedia editors. Spotlight links are only retained if the Wikipedia editor had included a link to the same target (anywhere on the page). 
+
+This process is very similar to how the official automatic qrels were created by the track organizers, with the difference that official qrels are based on entity links created by Wikipedia editors, where we extend this set with our spotlight-based heuristic. The main concern is that due to Wikipedia's editorial policies, only the first mention of an entity of a page is annotated with a hyperlink to the entity. However, central entities may get mentioned several more times on the page, possibly in other sections. Without fixing this ground truth, the concern was that when relevant entities are included in the ranking, we don't want the qrels file to (falsely) indicate that the entity is non-relevant.
 
 We train several variations of this method and select the best variation for submission as ``UNH-e-graph''. We found in post-mortem experiments that including ecm-expansion would lead to even better performance. However, we were concerned that this feature would not generalize well to non-Wikipedia collections and did not include it in the variant submitted.
 
@@ -365,12 +374,12 @@ For each method, the top 100 paragraphs/entities were retrieved.
 
 \subsection{Results}
 
-We compare the performance of our passage retrieval methods using three benchmarks (Y1 Train, Y1 Test, and Y2 Test) in table~\ref{tab:passage}.
-Highest MAP values are depicted in bold. Results are presented in Table \ref{tab:entity-results} and \ref{tab:psg-results}.
+We compare the performance of our passage retrieval methods using three benchmarks (Y1 Train, Y1 Test, and Y2 Test) in Table~\ref{tab:passage}.
+Highest MAP values are depicted in bold. Results are presented in Table~\ref{tab:entity-results} and \ref{tab:psg-results}.
 
-Among the submitted runs, the runs produced by UNH-p-l2r and UNH-e-l2r work best on Y2 Test. Especially for UNH-p-l2r this is surprising for two reasons: (1) the method is fairly simple, including only BM25 and Query likelihood with and without relevance model expansion; (2) they were not necessarily performing best in terms of MAP or Rprec on automatic Y1 train and Y1 test benchmarks---in contrast to findings of the track organizers last year, that automatic and manual assessments lead to nearly the same system rankings.
+Among the submitted runs, the runs produced by UNH-p-l2r and UNH-e-l2r work best on Y2 Test. This is especially surprising for UNH-p-l2r for two reasons: (1) the method is fairly simple, including only BM25 and Query likelihood with and without RM3 expansion; (2) both were not necessarily performing best in terms of MAP or Rprec on automatic Y1 train and Y1 test benchmarks---in contrast to findings of the track organizers last year, that automatic and manual assessments lead to nearly the same system rankings.
 
-On the automatic benchmarks Y1 Train and Y1 Test, UNH-p-mixed and UNH-e-mixed methods have the highest performance with respect to RPrec and MAP. Interestingly, their performance is the lowest among all our submitted methods with respect to the manual benchmark (Y2 Test). We speculate that NDCG measure on the automatic benchmarks are better correlated with good performance on manual assessments of Y2 test.
+On the automatic benchmarks Y1 Train and Y1 Test, UNH-p-mixed and UNH-e-mixed methods have the highest performance with respect to RPrec and MAP. Interestingly, their performance is the lowest among all our submitted methods with respect to the manual benchmark (Y2 Test). We speculate that the NDCG measure on the automatic benchmarks are better correlated with good performance on manual assessments of Y2 test.
 
 \begin{table}
 \centering
@@ -416,19 +425,19 @@ On the automatic benchmarks Y1 Train and Y1 Test, UNH-p-mixed and UNH-e-mixed me
 
 \section{Evaluation on TREC News}
 
-We participate in the NEWS track entity ranking task. As no training data was provided, we participate with with three variations of our Low-level entity retrieval features.
+We participate in the NEWS track entity ranking task. As no training data was provided, we participate with with three variations of our low-level entity retrieval features as described in Section \ref{sec:entity}.
 
 In this task, we are given a set of entities that we have to re-rank by importance for the article. Our approach is to use a part of the given news article (title or first paragraph) to construct a query. This query is used to retrieve entities from the entity index built from pages made available in CAR's allButBenchmark collection. We use BM25 with a whitelist to retrieve a re-ranking Wiki pages and rank the set of given entities according to their pages.
 
 \begin{itemize}
-    \item UNH-TitleBm25: Using the article title as a query, retrieve Wiki pages with BM25.  
-    \item UNH-ParaBM25: Using the first paragraph (or at least 200 characters) of the article's content as a query, retrieve Wiki pages with BM25
-    \item UNH-ParaBM25Ecm:  Like UNH-ParaBM25, but use the entity context model \cite{dalton2014entity} to produce a ranking of entities.
+    \item UNH-TitleBm25: Using the article title as a query, use BM25 to retrieve from the page index.  
+    \item UNH-ParaBM25: Using the first paragraph (or at least 200 characters) of the news article's content as a query,  use BM25 to retrieve from the page index.  
+    \item UNH-ParaBM25Ecm:  Using the first paragraph of the news article as query to retrieve CAR paragraphs. The ecm entitt ranking is derived from these paragraphs (using entity links provided by CAR organizers).
 \end{itemize}
 
-The last method uses the entity context model in a non-standard way, where the whole page is used instead of short passages: After retrieving a feedback run of Wikipedia pages with BM25, each page is represented as bag-of-entity-link-targets. Using the relevance model \cite{lavrenko2017relevance}, we compute the distribution over expansion entities $P(E|Q)$. Instead of expanding the query with these entities, we use the distribution directly to produce a ranking of entities.
-
-$$ score(E|Q)= \sum_{D\in \text{ranking}} p(D|Q) p(E|D)$$
+% The last method uses the entity context model in a non-standard way, where the whole page is used instead of short passages: After retrieving a feedback run of Wikipedia pages with BM25, each page is represented as bag-of-entity-link-targets. Using the relevance model \cite{lavrenko2017relevance}, we compute the distribution over expansion entities $P(E|Q)$. Instead of expanding the query with these entities, we use the distribution directly to produce a ranking of entities.
+% 
+% $$ score(E|Q)= \sum_{D\in \text{ranking}} p(D|Q) p(E|D)$$
 
 The results are presented in Table \ref{tab:news-results}. We see that retrieving entities with the first paragraph (no ecm expansion) works best. For reference we include median and best run as provided by the NEWS organizers. Our best run performs above the median and slightly below the best run.
 
