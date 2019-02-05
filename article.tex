@@ -8,6 +8,7 @@
 \usepackage{float}
 \usepackage{booktabs}
 \usepackage{subfig}
+\usepackage{placeins}
 \usepackage{url}
 \usepackage{lineno}
 
@@ -329,7 +330,7 @@ The top 100 candidate passages are retrieved using the UNH-p-SDM passage retriev
 
 \subsection{UNH-e-Mixed}\label{sec:emixed}
 
-The UNH-e-mixed method is an entity retrieval method that utilizes all of the entity features described in section~\ref{sec:jointentity} (entity link frequency, the six fielded query features, and the three entity context features), in addition to all of the passage features described in section~\ref{sec:jointpassage} (UNH-p-SDM and SDM). The passage features are transformed into entity features such that the score of each entity is equal to the sum of the scores of passages that link to the entity, as mentioned in Section~\ref{sec:joint}.
+The UNH-e-mixed method is an entity retrieval method that utilizes all of the entity features described in section~\ref{sec:jointentity}. These include entity link frequency, the six fielded queries (enwiki categories, inlinks, outlinks, section headers, page name disambiguations, page name redirects), the three entity context features, and all of the passage features described in section~\ref{sec:jointpassage} (UNH-p-SDM and SDM). The passage features are transformed into entity features such that the score of each entity is equal to the sum of the scores of passages that link to the entity, as mentioned in Section~\ref{sec:joint}.
 
 
 
@@ -381,6 +382,18 @@ Among the submitted runs, the runs produced by UNH-p-l2r and UNH-e-l2r work best
 
 On the automatic benchmarks Y1 Train and Y1 Test, UNH-p-mixed and UNH-e-mixed methods have the highest performance with respect to RPrec and MAP. Interestingly, their performance is the lowest among all our submitted methods with respect to the manual benchmark (Y2 Test). We speculate that the NDCG measure on the automatic benchmarks are better correlated with good performance on manual assessments of Y2 test.
 
+Figures~\ref{fig:trec_2018_results} present evaluation results across all participating systems with respect to RPREC. As we see, among those that participated, our methods are either best or second best.
+
+
+\begin{figure}
+    \centering
+    \subfloat[Passage Task]{\includegraphics[width=0.45\columnwidth]{manual-psg-Rprec.pdf}}
+    \hfill
+    \subfloat[Entity Task]{\includegraphics[width=0.45\columnwidth]{manual-entity-Rprec.pdf}}
+    \caption{TREC CAR 2018 results for all participated systems, using the manual benchmark and Rprec as evaluation measure.}
+    \label{fig:trec_2018_results}
+\end{figure}
+
 \begin{table}
 \centering
 \caption{Performance of entity retrieval methods. Y1 Train and Y2 Test benchmarks are derived from an automatically generated ground truth. The Y2 Test benchmark contains the TREC 2018 manual assessments.\label{tab:entity-results}}
@@ -388,7 +401,8 @@ On the automatic benchmarks Y1 Train and Y1 Test, UNH-p-mixed and UNH-e-mixed me
     \begin{tabular}{llllllllll}\toprule 
         \textbf{Method} & \multicolumn{3}{c}{\textbf{Y1 Train}} & \multicolumn{3}{c}{\textbf{Y1 Test}} & \multicolumn{3}{c}{\textbf{Y2 Test}} \\
         \cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10}
-        & \textbf{MAP} & \textbf{RPREC} & \textbf{NDCG} & \textbf{MAP} & \textbf{RPREC} & \textbf{NDCG} & \textbf{MAP} & \textbf{RPREC} & \textbf{NDCG} \\\midrule
+        & \textbf{MAP} & \textbf{RPREC} & \textbf{NDCG} & \textbf{MAP} & \textbf{RPREC} & \textbf{NDCG} & \textbf{MAP} & \textbf{RPREC} & \textbf{NDCG} \\
+        %\midrule
         UNH-e-l2r   & 0.15 & \textbf{0.17} & \textbf{0.42} & \textbf{0.17} & \textbf{0.18} & \textbf{0.44} & \textbf{0.31} & \textbf{0.31} & \textbf{0.51} \\
         UNH-e-graph & 0.14 & 0.15  & 0.34 & 0.14 & 0.16 & 0.34 & 0.27 & 0.28 & 0.48 \\
         UNH-e-sdm & 0.16 & 0.17  & 0.38 & 0.17 & 0.18 & 0.40 & 0.26 & 0.28 & 0.46 \\
@@ -407,9 +421,10 @@ On the automatic benchmarks Y1 Train and Y1 Test, UNH-p-mixed and UNH-e-mixed me
 \caption{Performance of passage retrieval methods (submitted and low-level sectionpath baselines). Y1 Train and Y1 Test benchmarks are derived from an automatically generated ground truth. The Y2 Test benchmark contains the TREC 2018 manual assessments.\label{tab:psg-results} }
 \resizebox{\columnwidth}{!}{%
     \begin{tabular}{llllllllll}\toprule 
-         & \multicolumn{3}{c}{\textbf{Y1 Train}} & \multicolumn{3}{c}{\textbf{Y1 Test}} & \multicolumn{3}{c}{\textbf{Y2 Test}} \\
+        \textbf{Method}  & \multicolumn{3}{c}{\textbf{Y1 Train}} & \multicolumn{3}{c}{\textbf{Y1 Test}} & \multicolumn{3}{c}{\textbf{Y2 Test}} \\
         \cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10}
-        \textbf{Method} & \textbf{MAP} & \textbf{RPREC} & \textbf{NDCG} & \textbf{MAP} & \textbf{RPREC} & \textbf{NDCG} & \textbf{MAP} & \textbf{RPREC} & \textbf{NDCG} \\\midrule
+        & \textbf{MAP} & \textbf{RPREC} & \textbf{NDCG} & \textbf{MAP} & \textbf{RPREC} & \textbf{NDCG} & \textbf{MAP} & \textbf{RPREC} & \textbf{NDCG} \\
+        %\midrule
         UNH-p-l2r             & 0.12                 & 0.09                  & 0.20                  & 0.13                & 0.11                  & \textbf{0.27}               & \textbf{0.34}                & \textbf{0.33}                  & \textbf{0.58}               \\ 
         UNH-p-SDM             & 0.15                 & 0.12                   & 0.25                  & 0.14                & \textbf{0.13}                  & 0.24               & 0.30                & 0.31                  & 0.47               \\ 
         UNH-p-mixed           & \textbf{0.16}                 & \textbf{0.14}                   & \textbf{0.25}                  & \textbf{0.15}                & \textbf{0.13}                  & 0.25               & 0.29                & 0.32                  & 0.47               \\ 
@@ -423,7 +438,43 @@ On the automatic benchmarks Y1 Train and Y1 Test, UNH-p-mixed and UNH-e-mixed me
 \end{table}
 
 
+\FloatBarrier
+
+
+% \begin{figure}%
+%     \centering
+%     \subfloat[label 1]{{\includegraphics[width=5cm]{img1} }}%
+%     \qquad
+%     \subfloat[label 2]{{\includegraphics[width=5cm]{img2} }}%
+%     \caption{2 Figures side by side}%
+%     \label{fig:example}%
+% \end{figure}
+
 \section{Evaluation on TREC News}
+
+
+\begin{table}
+\centering \caption{Performance of entity re-ranking methods on NEWS. $^{\triangledown}$marks
+methods with significant difference to best performing method according
+to a paired-t-test with $\alpha=0.05$.\label{tab:news-results}}
+%\resizebox{\columnwidth}{!}{%
+\begin{tabular}{llll}
+\toprule 
+\textbf{Method}  & \multicolumn{3}{c}{\textbf{NEWS}}\tabularnewline
+\cmidrule(lr){2-4}  & \textbf{MAP}  & \textbf{RPREC}  & \textbf{NDCG@5} \tabularnewline
+%\midrule 
+UNH-ParaBm25 & $0.82\pm0.03$ & $0.72\pm0.04$ & $0.74\pm0.03$\tabularnewline
+UNH-TitleBm25 & $0.81\pm0.03$ & $0.71\pm0.04$ & $0.72\pm0.03$\tabularnewline
+UNH-ParaBm25Ecm & $0.71\pm0.04^{\triangledown}$ & $0.63\pm0.05^{\triangledown}$ & $0.55\pm0.04{}^{\triangledown}$\tabularnewline
+%\midrule
+\cmidrule(lr){2-4} 
+median run & N/A & $0.66$ & $0.62$\tabularnewline
+best run & N/A & $0.76$ & $0.82$\tabularnewline
+\bottomrule
+\end{tabular}
+
+%} 
+\end{table}
 
 We participate in the NEWS track entity ranking task. As no training data was provided, we participate with with three variations of our low-level entity retrieval features as described in Section \ref{sec:entity}.
 
@@ -445,37 +496,36 @@ The results are presented in Table \ref{tab:news-results}. We see that retrievin
 % Preview source code for paragraph 0
 % Preview source code for paragraph 0
 
-\begin{table}
-\centering \caption{Performance of entity re-ranking methods on NEWS. $^{\triangledown}$marks
-methods with significant difference to best performing method according
-to a paired-t-test with $\alpha=0.05$.\label{tab:news-results}}
-%\resizebox{\columnwidth}{!}{%
-\begin{center}
-\begin{tabular}{llll}
-\toprule 
-\textbf{Method}  & \multicolumn{3}{c}{\textbf{NEWS}}\tabularnewline
-\cmidrule(lr){2-4}  & \textbf{MAP}  & \textbf{RPREC}  & \textbf{NDCG@5} \tabularnewline
-\midrule 
-UNH-ParaBm25 & $0.82\pm0.03$ & $0.72\pm0.04$ & $0.74\pm0.03$\tabularnewline
-UNH-TitleBm25 & $0.81\pm0.03$ & $0.71\pm0.04$ & $0.72\pm0.03$\tabularnewline
-UNH-ParaBm25Ecm & $0.71\pm0.04^{\triangledown}$ & $0.63\pm0.05^{\triangledown}$ & $0.55\pm0.04{}^{\triangledown}$\tabularnewline
-\midrule
-median run & N/A & $0.66$ & $0.62$\tabularnewline
-best run & N/A & $0.76$ & $0.82$\tabularnewline
-\bottomrule
-\end{tabular}
-\end{center}
-%} 
-\end{table}
 
 
 
 
+%In this notebook we experiment with methods of document retrieval that utilize the context of entity links for passage and entity retrieval. In the case of entity retrieval, we use the context in which an entity occurs in a passage as a means of indicating the relevance of an entity with respect to a query.
+%This results in a significant improvement over just using features that score the relevance of an entity using fielded queries (such as the title, inlinks, or outlinks fields associated with a Wikipedia entity).
+% We show that under the right conditions (e.g. with English stemmer) a combination of traditional retrieval methods results in best performance.
 
 
 \section{Conclusion}
+In this notebook we experiment with methods of document retrieval that  utilize the context of entity links for passage and entity retrieval.
 
-This notebook presents the methods of the team TREMA-UNH to TREC CAR and TREC News. 
+In the case of CAR entity retrieval, we use the context in which an entity occurs in a passage as a means of indicating the relevance of an entity with respect to a query.
+This results in a significant improvement over just using features that score the relevance of an entity using fielded queries (such as the title, inlinks, or outlinks fields associated with a Wikipedia entity).
+
+
+While we were unable to show a similar improvement by retrieving passages using information pertaining to the entities it contains, we conclude that part of the reason for this not working was because entities are less ``specific' indicators of relevance than passages.
+For example, while the entity ``United States'' may be relevant to a query, this does not necessarily indicate that all passages that contain the entity ``United States'' are relevant.
+This suggests potential future work in understanding which entities are most important (salient) in indicating the relevance of passages that contain them.
+ We show that under the right conditions (e.g., Lucene with English stemmer) a combination of traditional retrieval methods with learning to rank results in best performance.
+ 
+On the NEWS entity ranking task we only retrieved entities from a Wikipedia dump, as no training data was provided. We see that using the first paragraph of the news article is as good as its title. 
+
+
+ 
+In comparison to other participating teams in CAR and NEWS track, our methods placed either best or second-best.
+
+
+% We present in this notebook methods which take advantage of semi-structured data from multiple sources (entities and passages) to improve retrieval results. We show that this approach is very effective in retrieving entities under the Entity Context Model.
+% This notebook presents the methods of the team TREMA-UNH to TREC CAR and TREC News. 
 
 
 
